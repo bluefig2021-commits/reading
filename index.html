@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>read</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple SD Gothic Neo", "Malgun Gothic", Helvetica, Arial, sans-serif; padding: clamp(12px, 4vw, 48px) 16px; color: #333; margin: 0; background: #fff; word-break: keep-all; }
+  .frame { max-width: 520px; margin: 0 auto; box-sizing: border-box; background: #fff; border: 1px solid #e3e3e3; border-radius: 24px; padding: clamp(18px, 4vw, 32px); }
+  #app[hidden] { display: none; }
+  #loginView { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 40vh; gap: 20px; }
+  #loginView[hidden] { display: none; }
+  .title-logo { font-size: 12px; letter-spacing: 4px; color: #aaa; font-weight: bold; }
+  #loginError { color: #ff4d4f; font-size: 12px; text-align: center; min-height: 16px; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .site-title { font-size: 24px; font-weight: 800; letter-spacing: -.5px; color: #0f172a; }
+  .btn { padding: 5px 15px; border: 1px solid #ccc; border-radius: 15px; background: #fff; cursor: pointer; font-size: 12px; letter-spacing: 1px; color: #888; text-decoration: none; display: inline-block; font-family: inherit; }
+  .btn-black { background: #000; color: #fff; border: none; padding: 10px 26px; border-radius: 20px; font-weight: bold; font-size: 14px; letter-spacing: 1px; cursor: pointer; font-family: inherit; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .chip { border: 1px solid #ddd; background: #fff; color: #888; border-radius: 20px; padding: 5px 12px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .chip.on { background: #0f172a; border-color: #0f172a; color: #fff; }
+  .ctl { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .round { width: 46px; height: 46px; border-radius: 50%; border: 1px solid #ddd; background: #fff; color: #0f172a; font-size: 18px; cursor: pointer; flex: none; }
+  .round[disabled] { opacity: .25; cursor: default; }
+  .rand { flex: 1; max-width: 200px; height: 42px; }
+  .card { border-radius: 18px; background: #f7f7f8; padding: 20px 18px; min-height: 250px; display: flex; flex-direction: column; }
+  .tag { align-self: flex-start; font-size: 12px; font-weight: 600; padding: 4px 11px; border-radius: 999px; margin-bottom: 12px; background: #0f172a; color: #fff; }
+  .card h2 { font-size: 20px; line-height: 1.35; font-weight: 800; letter-spacing: -.3px; color: #0f172a; margin: 0 0 10px; }
+  .card p { font-size: 16px; line-height: 1.7; margin: 0; }
+  .card p.more { margin-top: 10px; color: #777; font-size: 15px; }
+  .dig { align-self: flex-start; margin-top: 12px; border: 0; background: none; color: #0f172a; font: inherit; font-size: 13px; font-weight: 600; padding: 4px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .src { margin-top: auto; padding-top: 16px; font-size: 12px; color: #999; line-height: 1.6; }
+  .src a { color: #0f172a; }
+  .flip { animation: flip .16s ease-out; }
+  @keyframes flip { from { opacity: .25; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .flip { animation: none; } }
+  .meta { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 12px; color: #aaa; letter-spacing: 1px; gap: 8px; flex-wrap: wrap; }
+  .acts { display: flex; gap: 8px; }
+  .act { border: 1px solid #ddd; background: #fff; color: #555; border-radius: 15px; padding: 5px 13px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .act[aria-pressed="true"] { background: #0f172a; border-color: #0f172a; color: #fff; }
+  .act[disabled] { opacity: .5; cursor: default; }
+  .status { min-height: 18px; margin-top: 8px; font-size: 12px; color: #888; text-align: center; }
+  .saved { margin-top: 18px; border-top: 1px solid #eee; padding-top: 14px; }
+  .saved h3 { font-size: 12px; color: #aaa; letter-spacing: 1px; font-weight: 600; margin: 0 0 8px; }
+  .saved button { display: block; width: 100%; text-align: left; border: 0; background: #f7f7f8; color: #333; font: inherit; font-size: 14px; padding: 11px 14px; border-radius: 12px; margin-bottom: 6px; cursor: pointer; }
+  .empty { font-size: 13px; color: #bbb; }
+  button:focus-visible, a:focus-visible { outline: 2px solid #0f172a; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div id="loginView" hidden>
+    <div class="title-logo">PRIVATE READ</div>
+    <button id="googleLoginBtn" class="btn-black" type="button">GOOGLE LOGIN</button>
+    <div id="loginError"></div>
+  </div>
+
+  <div id="app" hidden>
+    <div class="head">
+      <div class="site-title">read</div>
+      <div class="acts">
+        <button class="btn" id="savedToggle" type="button">SAVED 0</button>
+        <button class="btn" id="logoutBtn" type="button">LOGOUT</button>
+      </div>
+    </div>
+
+    <div class="chips" id="chips" role="group" aria-label="category"></div>
+
+    <div class="ctl">
+      <button class="round" id="prev" type="button" aria-label="이전 글">←</button>
+      <button class="btn-black rand" id="rand" type="button">RANDOM</button>
+      <button class="round" id="next" type="button" aria-label="다음 글">→</button>
+    </div>
+
+    <article class="card" id="card" aria-live="polite"></article>
+
+    <div class="meta">
+      <span id="count"></span>
+      <div class="acts">
+        <button class="act" id="mark" type="button" aria-pressed="false">SAVE</button>
+        <button class="act" id="memo" type="button">TO MEMO</button>
+      </div>
+    </div>
+    <p class="status" id="status" aria-live="polite"></p>
+
+    <section class="saved" id="saved" hidden>
+      <h3>SAVED</h3>
+      <div id="savedList"></div>
+    </section>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const ADMIN_EMAIL = "raizn199x@gmail.com";
+const firebaseConfig = {
+  apiKey: "AIzaSyDWYC-g2LwKA10RUXYB2_5vXNULAcbUVFo",
+  authDomain: "memo-9d3d7.firebaseapp.com",
+  projectId: "memo-9d3d7",
+  storageBucket: "memo-9d3d7.firebasestorage.app",
+  messagingSenderId: "648840817270",
+  appId: "1:648840817270:web:74671efb217c73b341cd57",
+  measurementId: "G-GCXM0W50LG"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+const provider = new GoogleAuthProvider();
+provider.setCustomParameters({ prompt: "select_account" });
+setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+const SEED = [];  // data/items.json 을 못 읽을 때를 위한 빈 값
+const CATS = ["전체", "미스터리", "미제사건", "고대문명", "미학", "과학", "역사", "사건사고", "IT", "문학"];
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let ALL = [];
+let cat = "전체";
+let history = [];
+let pos = -1;
+let seen = new Set(store.get("seen", []));
+let marks = store.get("marks", {});
+let started = false;
+
+/* ── 로그인 (이 사이트 전용 로그인. 프로젝트 규칙은 기존 것과 같이 적용됨) ── */
+$("googleLoginBtn").addEventListener("click", async () => {
+  try{ await signInWithPopup(auth, provider); }
+  catch(e){ $("loginError").textContent = "Login failed: " + e.message; }
+});
+$("logoutBtn").addEventListener("click", () => signOut(auth));
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user){
+    $("app").hidden = true;
+    $("loginView").hidden = false;
+    return;
+  }
+  if (user.email !== ADMIN_EMAIL){
+    $("loginError").textContent = "This account has no access.";
+    $("loginView").hidden = false;
+    $("app").hidden = true;
+    await signOut(auth);
+    return;
+  }
+  $("loginError").textContent = "";
+  $("loginView").hidden = true;
+  $("app").hidden = false;
+  if (started) return;
+  started = true;
+  await pullRemote();
+  await init();
+});
+
+/* ── 읽은 기록 / 북마크를 Firestore 에도 저장 (settings/reading) ──
+   규칙이 막혀 있으면 조용히 실패하고 이 기기에만 저장됨 */
+const stateRef = doc(db, "settings", "reading");
+async function pullRemote(){
+  try{
+    const s = await getDoc(stateRef);
+    if (!s.exists()) return;
+    const d = s.data();
+    (d.seen || []).forEach(x => seen.add(x));
+    Object.assign(marks, d.marks || {});
+    if (d.last && !store.get("last", null)) store.set("last", d.last);
+  }catch(e){}
+}
+let pushTimer = null;
+function pushRemote(){
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(async () => {
+    try{
+      await setDoc(stateRef, { seen: [...seen].slice(-2000), marks, last: history[pos] || null, updatedAt: serverTimestamp() });
+    }catch(e){}
+  }, 1000);
+}
+
+/* ── 데이터 ── */
+async function loadData(){
+  try{
+    const r = await fetch("data/items.json", {cache:"no-cache"});
+    if (r.ok){
+      const d = await r.json();
+      if (Array.isArray(d) && d.length) return d;
+    }
+  }catch(e){}
+  return SEED;
+}
+function normalize(list){
+  const m = new Map();
+  list.forEach((x, i) => {
+    if (!x || !x.t || !x.b || !x.c) return;
+    const id = String(x.id || ("s" + i));
+    if (!m.has(id)) m.set(id, Object.assign({}, x, {id}));
+  });
+  return [...m.values()];
+}
+const byId = id => ALL.find(x => x.id === id);
+const pool = () => ALL.filter(x => cat === "전체" || x.c === cat);
+
+function pickRandom(excludeId){
+  const p = pool();
+  if (!p.length) return null;
+  let fresh = p.filter(x => !seen.has(x.id));
+  if (!fresh.length){ p.forEach(x => seen.delete(x.id)); fresh = p.slice(); }
+  if (fresh.length > 1) fresh = fresh.filter(x => x.id !== excludeId);
+  if (cat === "전체"){
+    const groups = {};
+    fresh.forEach(x => (groups[x.c] = groups[x.c] || []).push(x));
+    const keys = Object.keys(groups);
+    const g = groups[keys[Math.floor(Math.random() * keys.length)]];
+    return g[Math.floor(Math.random() * g.length)];
+  }
+  return fresh[Math.floor(Math.random() * fresh.length)];
+}
+function safeUrl(it){
+  if (it.url && /^https:\/\//.test(it.url)) return it.url;
+  return "https://ko.wikipedia.org/w/index.php?search=" + encodeURIComponent(it.q || it.t);
+}
+function fmtDate(d){
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || "");
+  return m ? `${m[1]}.${m[2]}.${m[3]}` : "";
+}
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+const say = t => { $("status").textContent = t || ""; };
+
+function save(){
+  store.set("seen", [...seen].slice(-3000));
+  store.set("marks", marks);
+  store.set("last", history[pos] || null);
+  pushRemote();
+}
+
+function render(animate){
+  const it = byId(history[pos]);
+  const card = $("card");
+  card.innerHTML = "";
+  if (!it){ card.append(el("p", "", "보여줄 글이 없어")); return; }
+
+  card.append(el("span", "tag", it.c), el("h2", "", it.t), el("p", "", it.b));
+
+  if (it.more){
+    const more = el("p", "more", it.more);
+    more.hidden = true;
+    const dig = el("button", "dig", "더 파고들기");
+    dig.type = "button";
+    dig.setAttribute("aria-expanded", "false");
+    dig.onclick = () => {
+      more.hidden = !more.hidden;
+      dig.textContent = more.hidden ? "더 파고들기" : "접기";
+      dig.setAttribute("aria-expanded", String(!more.hidden));
+    };
+    card.append(dig, more);
+  }
+
+  const src = el("div", "src");
+  const date = fmtDate(it.date);
+  src.append(document.createTextNode("출처 " + (it.src || "위키백과 검색") + (date ? " · " + date : "") + " · "));
+  const a = document.createElement("a");
+  a.href = safeUrl(it); a.target = "_blank"; a.rel = "noopener noreferrer";
+  a.textContent = "원문 보기";
+  src.append(a);
+  if (it.k === "curated"){
+    src.append(document.createElement("br"));
+    src.append(document.createTextNode("정리한 글이라 정확한 내용은 원문에서 확인해줘"));
+  }
+  card.append(src);
+
+  if (animate){ card.classList.remove("flip"); void card.offsetWidth; card.classList.add("flip"); }
+
+  $("prev").disabled = pos <= 0;
+  $("count").textContent = `${seen.size} READ · ${ALL.length} TOTAL`;
+  const m = !!marks[it.id];
+  $("mark").setAttribute("aria-pressed", String(m));
+  $("mark").textContent = m ? "SAVED" : "SAVE";
+  renderSaved();
+  save();
+}
+
+function show(item){
+  if (!item) return;
+  seen.add(item.id);
+  history = history.slice(0, pos + 1);
+  history.push(item.id);
+  pos = history.length - 1;
+  render(true);
+}
+function randomJump(){ show(pickRandom(history[pos])); }
+function next(){
+  if (pos < history.length - 1){ pos++; render(true); return; }
+  randomJump();
+}
+function prev(){ if (pos > 0){ pos--; render(true); } }
+
+function setCat(c){
+  cat = c; history = []; pos = -1;
+  document.querySelectorAll(".chip").forEach(b => b.classList.toggle("on", b.dataset.c === c));
+  say(pool().length ? "" : "이 카테고리는 아직 글이 없어");
+  randomJump();
+}
+
+function renderSaved(){
+  const ids = Object.keys(marks).filter(id => byId(id));
+  $("savedToggle").textContent = `SAVED ${ids.length}`;
+  const list = $("savedList"); list.innerHTML = "";
+  if (!ids.length){ list.append(el("p", "empty", "아직 없음")); return; }
+  ids.forEach(id => {
+    const it = byId(id);
+    const b = el("button", "", it.t); b.type = "button";
+    b.onclick = () => { show(it); window.scrollTo({top:0, behavior:"smooth"}); };
+    list.append(b);
+  });
+}
+
+/* ── 메모로 보내기: archive 의 memos 컬렉션에 카테고리 Read 로 저장 ── */
+async function sendMemo(){
+  const it = byId(history[pos]);
+  if (!it) return;
+  const btn = $("memo");
+  btn.disabled = true;
+  const content =
+    `<div>${esc(it.t)}</div>\n<div>${esc(it.b)}</div>\n` +
+    (it.more ? `<div>${esc(it.more)}</div>\n` : "") +
+    `<div><a href="${esc(safeUrl(it))}">${esc(it.src || "원문")}</a></div>`;
+  try{
+    await addDoc(collection(db, "memos"), { category: "Read", content, createdAt: serverTimestamp() });
+    say("메모에 저장했어 (카테고리: Read)");
+  }catch(e){
+    say("메모 저장 실패: " + e.message);
+  }finally{
+    setTimeout(() => { btn.disabled = false; }, 1500);
+  }
+}
+
+async function init(){
+  CATS.forEach(c => {
+    const b = el("button", "chip" + (c === "전체" ? " on" : ""), c);
+    b.type = "button"; b.dataset.c = c;
+    b.onclick = () => setCat(c);
+    $("chips").append(b);
+  });
+  $("rand").onclick = randomJump;
+  $("next").onclick = next;
+  $("prev").onclick = prev;
+  $("memo").onclick = sendMemo;
+  $("mark").onclick = () => {
+    const id = history[pos]; if (!id) return;
+    if (marks[id]) delete marks[id]; else marks[id] = 1;
+    render(false);
+  };
+  $("savedToggle").onclick = () => { $("saved").hidden = !$("saved").hidden; };
+  document.addEventListener("keydown", e => {
+    if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+    if (e.key === "ArrowRight") next();
+    if (e.key === "ArrowLeft") prev();
+  });
+
+  ALL = normalize(await loadData());
+  if (!ALL.length){ say("data/items.json 을 못 불러왔어. 파일 위치를 확인해줘"); return; }
+  const last = store.get("last", null);
+  if (last && byId(last)){
+    history = [last]; pos = 0; render(false);
+    say("마지막으로 보던 글부터 이어서 보여주는 중");
+  } else {
+    randomJump();
+  }
+}
+</script>
+</body>
+</html>
