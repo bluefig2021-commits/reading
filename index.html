@@ -44,6 +44,9 @@
   .saved h3 { font-size: 12px; color: #aaa; letter-spacing: 1px; font-weight: 600; margin: 0 0 8px; }
   .saved button { display: block; width: 100%; text-align: left; border: 0; background: #f7f7f8; color: #333; font: inherit; font-size: 14px; padding: 11px 14px; border-radius: 12px; margin-bottom: 6px; cursor: pointer; }
   .empty { font-size: 13px; color: #bbb; }
+  .srow { display: flex; gap: 6px; margin-bottom: 6px; }
+  .srow .go { flex: 1; margin: 0; }
+  .srow .del { flex: none; width: 40px; margin: 0; text-align: center; color: #aaa; }
   button:focus-visible, a:focus-visible { outline: 2px solid #0f172a; outline-offset: 2px; }
 </style>
 </head>
@@ -78,7 +81,6 @@
       <span id="count"></span>
       <div class="acts">
         <button class="act" id="mark" type="button" aria-pressed="false">SAVE</button>
-        <button class="act" id="memo" type="button">TO MEMO</button>
       </div>
     </div>
     <p class="status" id="status" aria-live="polite"></p>
@@ -93,7 +95,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const ADMIN_EMAIL = "raizn199x@gmail.com";
 const firebaseConfig = {
@@ -113,17 +115,18 @@ provider.setCustomParameters({ prompt: "select_account" });
 setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 const SEED = [];  // data/items.json 을 못 읽을 때를 위한 빈 값
-const CATS = ["전체", "미스터리", "미제사건", "고대문명", "미학", "인물", "영화", "AI·미래", "과학", "역사", "사건사고", "IT", "문학"];
+const CATS = ["가볍게", "전체", "잡학", "황당실화", "흑역사", "괴담", "착각", "인터넷", "미스터리", "미제사건", "고대문명", "사건사고", "영화", "과학", "역사", "인물", "미학", "고전문학", "문학", "IT", "AI·미래", "로봇", "바이오", "반도체", "뇌과학", "신소재"];
+// "가볍게" 를 누르면 여기 들어있는 카테고리 글만 나옴 (머리 비우고 보는 것들)
+const LIGHT = ["잡학", "황당실화", "흑역사", "괴담", "착각", "인터넷", "미스터리", "미제사건", "고대문명", "사건사고", "영화", "과학", "역사"];
 
 const $ = id => document.getElementById(id);
 const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 let ALL = [];
-let cat = "전체";
+let cat = "가볍게";
 let history = [];
 let pos = -1;
 let seen = new Set(store.get("seen", []));
@@ -183,15 +186,19 @@ function pushRemote(){
 }
 
 /* ── 데이터 ── */
-async function loadData(){
+async function fetchJson(path){
   try{
-    const r = await fetch("data/items.json", {cache:"no-cache"});
+    const r = await fetch(path, {cache:"no-cache"});
     if (r.ok){
       const d = await r.json();
-      if (Array.isArray(d) && d.length) return d;
+      if (Array.isArray(d)) return d;
     }
   }catch(e){}
-  return SEED;
+  return [];
+}
+async function loadData(){
+  const [a, b] = await Promise.all([fetchJson("data/items.json"), fetchJson("data/light.json")]);
+  return a.concat(b);
 }
 function normalize(list){
   const m = new Map();
@@ -203,7 +210,8 @@ function normalize(list){
   return [...m.values()];
 }
 const byId = id => ALL.find(x => x.id === id);
-const pool = () => ALL.filter(x => cat === "전체" || x.c === cat);
+const inCat = x => cat === "전체" ? true : cat === "가볍게" ? LIGHT.includes(x.c) : x.c === cat;
+const pool = () => ALL.filter(inCat);
 
 function pickRandom(excludeId){
   const p = pool();
@@ -211,7 +219,7 @@ function pickRandom(excludeId){
   let fresh = p.filter(x => !seen.has(x.id));
   if (!fresh.length){ p.forEach(x => seen.delete(x.id)); fresh = p.slice(); }
   if (fresh.length > 1) fresh = fresh.filter(x => x.id !== excludeId);
-  if (cat === "전체"){
+  if (cat === "전체" || cat === "가볍게"){
     const groups = {};
     fresh.forEach(x => (groups[x.c] = groups[x.c] || []).push(x));
     const keys = Object.keys(groups);
@@ -306,47 +314,41 @@ function prev(){ if (pos > 0){ pos--; render(true); } }
 
 function setCat(c){
   cat = c; history = []; pos = -1;
+  store.set("cat", c);
   document.querySelectorAll(".chip").forEach(b => b.classList.toggle("on", b.dataset.c === c));
   say(pool().length ? "" : "이 카테고리는 아직 글이 없어");
   randomJump();
 }
 
 function renderSaved(){
-  const ids = Object.keys(marks).filter(id => byId(id));
-  $("savedToggle").textContent = `SAVED ${ids.length}`;
+  const rows = Object.keys(marks).map(id => {
+    const v = marks[id];
+    return (v && typeof v === "object") ? v : byId(id);   // 예전에 1 로 저장된 건 목록에서 찾아서 씀
+  }).filter(Boolean);
+  $("savedToggle").textContent = `SAVED ${rows.length}`;
   const list = $("savedList"); list.innerHTML = "";
-  if (!ids.length){ list.append(el("p", "empty", "아직 없음")); return; }
-  ids.forEach(id => {
-    const it = byId(id);
-    const b = el("button", "", it.t); b.type = "button";
-    b.onclick = () => { show(it); window.scrollTo({top:0, behavior:"smooth"}); };
-    list.append(b);
+  if (!rows.length){ list.append(el("p", "empty", "아직 없음")); return; }
+  rows.forEach(it => {
+    const row = el("div", "srow");
+    const go = el("button", "go", it.t); go.type = "button";
+    go.onclick = () => {
+      if (!byId(it.id)) ALL.push(it);
+      show(it);
+      window.scrollTo({top:0, behavior:"smooth"});
+    };
+    const del = el("button", "del", "✕"); del.type = "button";
+    del.setAttribute("aria-label", "저장 취소");
+    del.onclick = () => { delete marks[it.id]; render(false); };
+    row.append(go, del);
+    list.append(row);
   });
 }
 
-/* ── 메모로 보내기: archive 의 memos 컬렉션에 카테고리 Read 로 저장 ── */
-async function sendMemo(){
-  const it = byId(history[pos]);
-  if (!it) return;
-  const btn = $("memo");
-  btn.disabled = true;
-  const content =
-    `<div>${esc(it.t)}</div>\n<div>${esc(it.b)}</div>\n` +
-    (it.more ? `<div>${esc(it.more)}</div>\n` : "") +
-    `<div><a href="${esc(safeUrl(it))}">${esc(it.src || "원문")}</a></div>`;
-  try{
-    await addDoc(collection(db, "memos"), { category: "Read", content, createdAt: serverTimestamp() });
-    say("메모에 저장했어 (카테고리: Read)");
-  }catch(e){
-    say("메모 저장 실패: " + e.message);
-  }finally{
-    setTimeout(() => { btn.disabled = false; }, 1500);
-  }
-}
-
 async function init(){
+  const savedCat = store.get("cat", "가볍게");
+  cat = CATS.includes(savedCat) ? savedCat : "가볍게";
   CATS.forEach(c => {
-    const b = el("button", "chip" + (c === "전체" ? " on" : ""), c);
+    const b = el("button", "chip" + (c === cat ? " on" : ""), c);
     b.type = "button"; b.dataset.c = c;
     b.onclick = () => setCat(c);
     $("chips").append(b);
@@ -354,10 +356,9 @@ async function init(){
   $("rand").onclick = randomJump;
   $("next").onclick = next;
   $("prev").onclick = prev;
-  $("memo").onclick = sendMemo;
   $("mark").onclick = () => {
-    const id = history[pos]; if (!id) return;
-    if (marks[id]) delete marks[id]; else marks[id] = 1;
+    const it = byId(history[pos]); if (!it) return;
+    if (marks[it.id]) delete marks[it.id]; else marks[it.id] = it;
     render(false);
   };
   $("savedToggle").onclick = () => { $("saved").hidden = !$("saved").hidden; };
@@ -370,7 +371,7 @@ async function init(){
   ALL = normalize(await loadData());
   if (!ALL.length){ say("data/items.json 을 못 불러왔어. 파일 위치를 확인해줘"); return; }
   const last = store.get("last", null);
-  if (last && byId(last)){
+  if (last && byId(last) && inCat(byId(last))){
     history = [last]; pos = 0; render(false);
     say("마지막으로 보던 글부터 이어서 보여주는 중");
   } else {
