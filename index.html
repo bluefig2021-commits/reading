@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>read</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='110' fill='%23ffffff' stroke='%23e3e3e3' stroke-width='16'/%3E%3Cpath d='M110 130c45 0 85 25 146 65v192c-61-40-101-65-146-65V130zm292 0c-45 0-85 25-146 65v192c61-40 101-65 146-65V130z' fill='%230f172a'/%3E%3C/svg%3E">
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple SD Gothic Neo", "Malgun Gothic", Helvetica, Arial, sans-serif; padding: clamp(12px, 4vw, 48px) 16px; color: #333; margin: 0; background: #fff; word-break: keep-all; }
   .frame { max-width: 520px; margin: 0 auto; box-sizing: border-box; background: #fff; border: 1px solid #e3e3e3; border-radius: 24px; padding: clamp(18px, 4vw, 32px); }
@@ -119,7 +120,7 @@ const CATS = ["가볍게", "전체", "잡학", "황당실화", "흑역사", "괴
 // "가볍게" 를 누르면 여기 들어있는 카테고리 글만 나옴 (머리 비우고 보는 것들)
 const LIGHT = ["잡학", "황당실화", "흑역사", "괴담", "착각", "인터넷", "미스터리", "미제사건", "고대문명", "사건사고", "영화", "과학", "역사"];
 
-const $ = id => document.getElementById(id);
+const \$ = id => document.getElementById(id);
 const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
@@ -134,28 +135,28 @@ let marks = store.get("marks", {});
 let started = false;
 
 /* ── 로그인 (이 사이트 전용 로그인. 프로젝트 규칙은 기존 것과 같이 적용됨) ── */
-$("googleLoginBtn").addEventListener("click", async () => {
+\$("googleLoginBtn").addEventListener("click", async () => {
   try{ await signInWithPopup(auth, provider); }
-  catch(e){ $("loginError").textContent = "Login failed: " + e.message; }
+  catch(e){ \$("loginError").textContent = "Login failed: " + e.message; }
 });
-$("logoutBtn").addEventListener("click", () => signOut(auth));
+\$("logoutBtn").addEventListener("click", () => signOut(auth));
 
 onAuthStateChanged(auth, async (user) => {
   if (!user){
-    $("app").hidden = true;
-    $("loginView").hidden = false;
+    \$("app").hidden = true;
+    \$("loginView").hidden = false;
     return;
   }
   if (user.email !== ADMIN_EMAIL){
-    $("loginError").textContent = "This account has no access.";
-    $("loginView").hidden = false;
-    $("app").hidden = true;
+    \$("loginError").textContent = "This account has no access.";
+    \$("loginView").hidden = false;
+    \$("app").hidden = true;
     await signOut(auth);
     return;
   }
-  $("loginError").textContent = "";
-  $("loginView").hidden = true;
-  $("app").hidden = false;
+  \$("loginError").textContent = "";
+  \$("loginView").hidden = true;
+  \$("app").hidden = false;
   if (started) return;
   started = true;
   await pullRemote();
@@ -163,7 +164,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 /* ── 읽은 기록 / 북마크를 Firestore 에도 저장 (settings/reading) ──
-   규칙이 막혀 있으면 조용히 실패하고 이 기기에만 저장됨 */
+    규칙이 막혀 있으면 조용히 실패하고 이 기기에만 저장됨 */
 const stateRef = doc(db, "settings", "reading");
 async function pullRemote(){
   try{
@@ -242,7 +243,7 @@ function el(tag, cls, text){
   if (text != null) e.textContent = text;
   return e;
 }
-const say = t => { $("status").textContent = t || ""; };
+const say = t => { \$("status").textContent = t || ""; };
 
 function save(){
   store.set("seen", [...seen].slice(-3000));
@@ -253,7 +254,7 @@ function save(){
 
 function render(animate){
   const it = byId(history[pos]);
-  const card = $("card");
+  const card = \$("card");
   card.innerHTML = "";
   if (!it){ card.append(el("p", "", "보여줄 글이 없어")); return; }
 
@@ -288,11 +289,11 @@ function render(animate){
 
   if (animate){ card.classList.remove("flip"); void card.offsetWidth; card.classList.add("flip"); }
 
-  $("prev").disabled = pos <= 0;
-  $("count").textContent = `${seen.size} READ · ${ALL.length} TOTAL`;
+  \$("prev").disabled = pos <= 0;
+  \$("count").textContent = `${seen.size} READ · ${ALL.length} TOTAL`;
   const m = !!marks[it.id];
-  $("mark").setAttribute("aria-pressed", String(m));
-  $("mark").textContent = m ? "SAVED" : "SAVE";
+  \$("mark").setAttribute("aria-pressed", String(m));
+  \$("mark").textContent = m ? "SAVED" : "SAVE";
   renderSaved();
   save();
 }
@@ -323,10 +324,10 @@ function setCat(c){
 function renderSaved(){
   const rows = Object.keys(marks).map(id => {
     const v = marks[id];
-    return (v && typeof v === "object") ? v : byId(id);   // 예전에 1 로 저장된 건 목록에서 찾아서 씀
+    return (v && typeof v === "object") ? v : byId(id);    // 예전에 1 로 저장된 건 목록에서 찾아서 씀
   }).filter(Boolean);
-  $("savedToggle").textContent = `SAVED ${rows.length}`;
-  const list = $("savedList"); list.innerHTML = "";
+  \$("savedToggle").textContent = `SAVED ${rows.length}`;
+  const list = \$("savedList"); list.innerHTML = "";
   if (!rows.length){ list.append(el("p", "empty", "아직 없음")); return; }
   rows.forEach(it => {
     const row = el("div", "srow");
@@ -351,17 +352,17 @@ async function init(){
     const b = el("button", "chip" + (c === cat ? " on" : ""), c);
     b.type = "button"; b.dataset.c = c;
     b.onclick = () => setCat(c);
-    $("chips").append(b);
+    \$("chips").append(b);
   });
-  $("rand").onclick = randomJump;
-  $("next").onclick = next;
-  $("prev").onclick = prev;
-  $("mark").onclick = () => {
+  \$("rand").onclick = randomJump;
+  \$("next").onclick = next;
+  \$("prev").onclick = prev;
+  \$("mark").onclick = () => {
     const it = byId(history[pos]); if (!it) return;
     if (marks[it.id]) delete marks[it.id]; else marks[it.id] = it;
     render(false);
   };
-  $("savedToggle").onclick = () => { $("saved").hidden = !$("saved").hidden; };
+  \$("savedToggle").onclick = () => { $("saved").hidden = !$("saved").hidden; };
   document.addEventListener("keydown", e => {
     if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
     if (e.key === "ArrowRight") next();
